@@ -7,6 +7,7 @@ import { fetchy } from "@/utils/fetchy";
 import { storeToRefs } from "pinia";
 import { onBeforeMount, ref } from "vue";
 import SearchPostForm from "./SearchPostForm.vue";
+// import SearchFeedPosts from "./SearchFeedPosts.vue";
 
 const { isLoggedIn } = storeToRefs(useUserStore());
 
@@ -14,17 +15,26 @@ const loaded = ref(false);
 let posts = ref<Array<Record<string, string>>>([]);
 let editing = ref("");
 let searchAuthor = ref("");
+let currentFeedName = ref("");
 
-async function getPosts(author?: string) {
-  let query: Record<string, string> = author !== undefined ? { author } : {};
+async function getPosts(author?: string, feedName?: string) {
+  let query: Record<string, string> = {};
+  if (author) {
+    query.author = author;
+  }
+  if (feedName) {
+    query.feedName = feedName;
+  }
   let postResults;
   try {
-    postResults = await fetchy("/api/posts", "GET", { query });
+    postResults = await fetchy("/api/posts", "GET", { query  });
   } catch (_) {
     return;
   }
   searchAuthor.value = author ? author : "";
-  posts.value = postResults;
+  posts.value = postResults.posts;
+  currentFeedName.value = postResults.feedName;
+
 }
 
 function updateEditing(id: string) {
@@ -43,9 +53,10 @@ onBeforeMount(async () => {
     <CreatePostForm @refreshPosts="getPosts" />
   </section>
   <div class="row">
-    <h2 v-if="!searchAuthor">Posts:</h2>
-    <h2 v-else>Posts by {{ searchAuthor }}:</h2>
-    <SearchPostForm @getPostsByAuthor="getPosts" />
+
+    <h2 v-if="!searchAuthor">Posts on {{ currentFeedName }}</h2>
+    <h2 v-else>Posts by {{ searchAuthor }} on {{ currentFeedName }}</h2>
+    <SearchPostForm @getPostsByFilter="getPosts" />
   </div>
   <section class="posts" v-if="loaded && posts.length !== 0">
     <article v-for="post in posts" :key="post._id">
