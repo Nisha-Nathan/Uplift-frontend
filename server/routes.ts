@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Authing, Friending, Posting, Sessioning } from "./app";
+import { Authing, Friending, Posting, Sessioning, Reaction, Feed, Notification, Reporting } from "./app";
 import { PostOptions } from "./concepts/posting";
 import { SessionDoc } from "./concepts/sessioning";
 import Responses from "./responses";
@@ -71,8 +71,10 @@ class Routes {
   }
 
   @Router.get("/posts")
-  @Router.validate(z.object({ author: z.string().optional() }))
-  async getPosts(author?: string) {
+  @Router.validate(z.object({ author: z.string().optional(), feedName: z.string().optional() }))
+  async getPosts(author?: string, feedName?: string) {
+    console.log("author", author);
+    console.log("feedName", feedName);
     let posts;
     if (author) {
       const id = (await Authing.getUserByUsername(author))._id;
@@ -80,14 +82,30 @@ class Routes {
     } else {
       posts = await Posting.getPosts();
     }
-    return Responses.posts(posts);
+    if (feedName) {
+      const feedOid = await Feed.getFeedBIdyFeedname(feedName);
+      const feedPosts = (await Feed.getFeedPosts(feedOid)).posts;
+      console.log("feedPosts", feedPosts);
+      const feedPostIds = new Set(feedPosts.map((postId) => postId.toString()));
+      posts = posts.filter((post) => feedPostIds.has(post._id.toString()));
+    }
+    const postsReturned = await Responses.posts(posts);
+    return { posts: postsReturned, feedName: feedName || "Home" };
   }
 
   @Router.post("/posts")
-  async createPost(session: SessionDoc, content: string, options?: PostOptions) {
+  async createPost(session: SessionDoc, content: string, feedName: string, options?: PostOptions) {
     const user = Sessioning.getUser(session);
     const created = await Posting.create(user, content, options);
-    return { msg: created.msg, post: await Responses.post(created.post) };
+
+    if (!created.post?._id) {
+      return { msg: "Failed to create post", post: null };
+    }
+
+    const feedOid = await Feed.getFeedBIdyFeedname(feedName);
+    const postOid = created.post?._id;
+    const feedMsg = await Feed.addPostToFeed(feedOid, postOid);
+    return { msg: created.msg + "" + feedMsg.msg, post: await Responses.post(created.post) };
   }
 
   @Router.patch("/posts/:id")
@@ -102,8 +120,11 @@ class Routes {
   async deletePost(session: SessionDoc, id: string) {
     const user = Sessioning.getUser(session);
     const oid = new ObjectId(id);
+
     await Posting.assertAuthorIsUser(oid, user);
-    return Posting.delete(oid);
+
+    const feedMsg = await Feed.removePostFromAllFeeds(oid);
+    return Posting.delete(oid) + " " + feedMsg;
   }
 
   @Router.get("/friends")
@@ -151,6 +172,130 @@ class Routes {
     const user = Sessioning.getUser(session);
     const fromOid = (await Authing.getUserByUsername(from))._id;
     return await Friending.rejectRequest(fromOid, user);
+  }
+
+  @Router.post("/feed")
+  async createFeed(name: string, feedDescription: string) {
+    const feed = await Feed.createFeed(name, feedDescription);
+    return { msg: feed.msg, feed: feed };
+  }
+
+  @Router.get("/feeds")
+  async getFeeds() {
+    const feeds = await Feed.getFeeds();
+    return { feeds: feeds };
+  }
+
+  @Router.patch("/feed/:name/post/remove")
+  async removePostFromFeed(name: string, postId: string) {
+    const id = await Feed.getFeedBIdyFeedname(name);
+    const feedOid = new ObjectId(id);
+    const postOid = new ObjectId(postId);
+    const response = await Feed.removePostFromFeed(feedOid, postOid);
+    return { msg: response.msg, feed: response.feed };
+  }
+
+  @Router.get("/feed/:name")
+  async getFeedPosts(name: string) {
+    const id = await Feed.getFeedBIdyFeedname(name);
+    const feedOid = new ObjectId(id);
+    const feed = await Feed.getFeedPosts(feedOid);
+    return { name: feed.name, posts: feed.posts };
+  }
+
+  @Router.post("/reactions")
+  async addReaction(session: SessionDoc, itemId: string, reaction: string) {
+    const user = Sessioning.getUser(session);
+    const itemOid = new ObjectId(itemId);
+    const addedReaction = await Reaction.addReaction(user, itemOid, reaction);
+    return { msg: addedReaction.msg, reaction: addedReaction.reaction };
+  }
+
+  @Router.delete("/reactions")
+  async removeReaction(session: SessionDoc, itemId: string, reaction: string) {
+    const user = Sessioning.getUser(session);
+    const itemOid = new ObjectId(itemId);
+    const msg = await Reaction.removeReaction(user, itemOid);
+    return { msg };
+  }
+
+  @Router.get("/reactions/:id")
+  async getPostReactions(id: string) {
+    const itemOid = new ObjectId(id);
+    const item = await Reaction.getReactionCount(itemOid);
+    return { itemId: id, ReactionCount: item };
+  }
+
+  @Router.post("/notifications")
+  async createNotification(session: SessionDoc, notifyAbout: string, notificationTime: Date) {
+    const user = Sessioning.getUser(session);
+    const notification = await Notification.createNotification(user, notifyAbout, notificationTime);
+    return { msg: "Notification created successfully", notification };
+  }
+
+  @Router.get("/notifications/deliver")
+  async deliverNotifications() {
+    const result = await Notification.deliverPendingNotifications();
+    return result;
+  }
+
+  @Router.delete("/notifications/:id")
+  async deleteNotification(id: string) {
+    const notificationOid = new ObjectId(id);
+    const result = await Notification.deleteNotification(notificationOid);
+    return result;
+  }
+
+  @Router.get("/notifications/delivered")
+  async getDeliveredNotifications() {
+    const delivered = await Notification.getDeliveredNotifications();
+    return { deliveredNotifications: delivered };
+  }
+
+  @Router.get("/notifications/pending")
+  async getPendingNotifications() {
+    const pending = await Notification.getPendingNotiifications();
+    return { pendingNotifications: pending };
+  }
+
+  @Router.get("/posts/content/:id")
+  async getPostContent(id: string) {
+    const itemOid = new ObjectId(id);
+    const content = await Posting.getPostContent(itemOid);
+    return { content: content };
+  }
+
+  @Router.post("/report")
+  async flagPosts(session: SessionDoc, itemId: string, flaggingReason: string) {
+    const user = Sessioning.getUser(session);
+    const itemOid = new ObjectId(itemId);
+    const content = (await Posting.getPostContent(itemOid)) || "";
+    const result = await Reporting.flagItem(itemOid, user, content, flaggingReason);
+    return { msg: "Item flagged for review", report: result };
+  }
+
+  @Router.get("/reports")
+  async getFlaggedItems() {
+    const flaggedItems = await Reporting.getFlaggedItems();
+    return { flaggedItems: flaggedItems };
+  }
+
+  @Router.get("/report/reviews")
+  async reviewPosts() {
+    await Reporting.reviewFlaggedItems();
+    const reviewedItems = await Reporting.getReviewedItems();
+    for (const item of reviewedItems) {
+      if (item.reviewOutcome === "remove") {
+        await Posting.delete(item.item);
+      }
+    }
+    return { msg: "Flagged items reviewed and actions taken accordingly." };
+  }
+
+  @Router.get("/reports/reviewed")
+  async getReviewedItems() {
+    const reviewedItems = await Reporting.getReviewedItems();
+    return { reviewedItems: reviewedItems };
   }
 }
 
