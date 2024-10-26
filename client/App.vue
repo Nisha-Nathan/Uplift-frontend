@@ -4,6 +4,7 @@ import { useUserStore } from "@/stores/user";
 import { storeToRefs } from "pinia";
 import { computed, onBeforeMount } from "vue";
 import { RouterLink, RouterView, useRoute } from "vue-router";
+import NotificationComponentDelivered from "./components/Notification/NotificationComponentDelivered.vue";
 
 const currentRoute = useRoute();
 const currentRouteName = computed(() => currentRoute.name);
@@ -25,9 +26,9 @@ onBeforeMount(async () => {
   <header>
     <nav>
       <div class="title">
-        <img src="@/assets/images/logo.svg" />
+
         <RouterLink :to="{ name: 'Home' }">
-          <h1>Social Media App</h1>
+          <img style="align-items: center;" src="@/assets/images/UpLift.png" />
         </RouterLink>
       </div>
       <ul>
@@ -35,18 +36,31 @@ onBeforeMount(async () => {
           <RouterLink :to="{ name: 'Home' }" :class="{ underline: currentRouteName == 'Home' }"> Home </RouterLink>
         </li>
         <li v-if="isLoggedIn">
-          <RouterLink :to="{ name: 'Settings' }" :class="{ underline: currentRouteName == 'Settings' }"> Settings </RouterLink>
+          <RouterLink :to="{ name: 'Journal' }" :class="{ underline: currentRouteName = 'Journal' }">Journal</RouterLink>
+        </li>
+        <li v-if="isLoggedIn">
+          <RouterLink :to="{ name: 'Notifications' }" :class="{ underline: currentRouteName = 'Notifications' }">
+            Notifications</RouterLink>
+        </li>
+        <li v-if="isLoggedIn">
+
+          <RouterLink :to="{ name: 'Profile' }" :class="{ underline: currentRouteName == 'Profile' }"> Profile
+          </RouterLink>
         </li>
         <li v-else>
           <RouterLink :to="{ name: 'Login' }" :class="{ underline: currentRouteName == 'Login' }"> Login </RouterLink>
         </li>
+
+
       </ul>
     </nav>
     <article v-if="toast !== null" class="toast" :class="toast.style">
       <p>{{ toast.message }}</p>
     </article>
+    <NotificationComponentDelivered />
   </header>
   <RouterView />
+
 </template>
 
 <style scoped>
@@ -54,7 +68,7 @@ onBeforeMount(async () => {
 
 nav {
   padding: 1em 2em;
-  background-color: lightgray;
+  background-color: rgb(255, 255, 255, 0.86);
   display: flex;
   align-items: center;
 }

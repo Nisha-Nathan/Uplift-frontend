@@ -34,6 +34,10 @@ async function login() {
 </template>
 
 <style scoped>
+form{
+  background-color:white;
+  width: 80%;
+}
 h3 {
   display: flex;
   justify-content: center;

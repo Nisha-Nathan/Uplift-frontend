@@ -3,6 +3,11 @@
 :root {
   --red: rgb(208, 67, 12);
   --base-bg: #f1f3f5;
+  
+}
+
+body{
+  background-color: rgb(253,213,117);
 }
 
 button.btn-small {
@@ -30,3 +35,4 @@ a.button {
   align-items: center;
   gap: 1em;
 }
+

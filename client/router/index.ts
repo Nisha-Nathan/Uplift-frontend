@@ -6,6 +6,10 @@ import HomeView from "../views/HomeView.vue";
 import LoginView from "../views/LoginView.vue";
 import NotFoundView from "../views/NotFoundView.vue";
 import SettingView from "../views/SettingView.vue";
+import JournalView from "../views/JournalView.vue";
+import NotificationView from "../views/NotificationView.vue";
+import UserProfileView from "../views/UserProfileView.vue";
+import JournalEntryView from "../views/JournalEntryView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -16,8 +20,20 @@ const router = createRouter({
       component: HomeView,
     },
     {
-      path: "/setting",
-      name: "Settings",
+      path: "/journal",
+      name: "Journal",
+      component: JournalView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path:"/notification",
+      name: "Notifications",
+      component:NotificationView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/profile",
+      name: "Profile",
       component: SettingView,
       meta: { requiresAuth: true },
     },
@@ -33,6 +49,17 @@ const router = createRouter({
         }
       },
     },
+    {
+      path: "/user/:username",
+      name: "UserProfile",
+      component: UserProfileView,
+    },
+    {
+      path: "/journal/:id",
+      name: "JournalEntry",
+      component: JournalEntryView,
+    },
+
     {
       path: "/:catchAll(.*)",
       name: "not-found",

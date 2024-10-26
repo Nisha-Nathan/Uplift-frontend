@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { fetchy } from "@/utils/fetchy";
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 
-const author = ref("");
 const emit = defineEmits(["getPostsByFilter"]);
 
 const feedName = ref("");
@@ -17,30 +16,18 @@ const getFeeds = async () => {
   }
 };
 
+
+
 onMounted(() => {
   getFeeds();
 });
 </script>
 
 <template>
-  <form @submit.prevent="emit('getPostsByFilter', author, feedName)" class="pure-form">
-    <fieldset>
-      <legend>Search by Feed</legend>
-      <select id="feed" v-model="feedName">
-        <option value="" disabled>Select a feed</option>
-        <option value="">Home</option>
-        <option v-for="feed in feeds" :key="feed._id" :value="feed.name">
-          {{ feed.name }}
-        </option>
-      </select>
-    </fieldset>
-    <fieldset>
-      <legend>Search by Author</legend>
-      <input id="author" type="text" v-model="author" placeholder="Username" />
-
-    </fieldset>
-    <button type="submit" class="pure-button pure-button-primary">Search</button>
-  </form>
+  <div>
+    <v-combobox variant="outlined" label="Choose a feed" v-model="feedName" :items="['Home',...feeds.map(feed => feed.name)]"
+      @update:model-value=" emit('getPostsByFilter', feedName)"></v-combobox>
+  </div>
 </template>
 
 <style scoped>
@@ -49,5 +36,17 @@ form {
   gap: 0.5em;
   padding: 1em;
   align-items: center;
+}
+
+.v-combobox {
+  align-self: center;
+}
+
+div {
+  min-width: 20em;
+}
+
+select {
+  min-width: 10em;
 }
 </style>

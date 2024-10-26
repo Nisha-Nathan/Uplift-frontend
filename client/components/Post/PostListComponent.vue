@@ -7,31 +7,27 @@ import { fetchy } from "@/utils/fetchy";
 import { storeToRefs } from "pinia";
 import { onBeforeMount, ref } from "vue";
 import SearchPostForm from "./SearchPostForm.vue";
-// import SearchFeedPosts from "./SearchFeedPosts.vue";
 
 const { isLoggedIn } = storeToRefs(useUserStore());
 
 const loaded = ref(false);
 let posts = ref<Array<Record<string, string>>>([]);
 let editing = ref("");
-let searchAuthor = ref("");
 let currentFeedName = ref("");
+const dialog = ref(false);
 
-async function getPosts(author?: string, feedName?: string) {
+async function getPosts(feedName?: string) {
   let query: Record<string, string> = {};
-  if (author) {
-    query.author = author;
-  }
+
   if (feedName) {
     query.feedName = feedName;
   }
   let postResults;
   try {
-    postResults = await fetchy("/api/posts", "GET", { query  });
+    postResults = await fetchy("/api/posts", "GET", { query });
   } catch (_) {
     return;
   }
-  searchAuthor.value = author ? author : "";
   posts.value = postResults.posts;
   currentFeedName.value = postResults.feedName;
 
@@ -39,6 +35,14 @@ async function getPosts(author?: string, feedName?: string) {
 
 function updateEditing(id: string) {
   editing.value = id;
+}
+
+function openDialog() {
+  dialog.value = true;
+}
+
+function closeDialog() {
+  dialog.value = false;
 }
 
 onBeforeMount(async () => {
@@ -49,30 +53,72 @@ onBeforeMount(async () => {
 
 <template>
   <section v-if="isLoggedIn">
-    <h2>Create a post:</h2>
-    <CreatePostForm @refreshPosts="getPosts" />
-  </section>
-  <div class="row">
 
-    <h2 v-if="!searchAuthor">Posts on {{ currentFeedName }}</h2>
-    <h2 v-else>Posts by {{ searchAuthor }} on {{ currentFeedName }}</h2>
-    <SearchPostForm @getPostsByFilter="getPosts" />
-  </div>
-  <section class="posts" v-if="loaded && posts.length !== 0">
-    <article v-for="post in posts" :key="post._id">
-      <PostComponent v-if="editing !== post._id" :post="post" @refreshPosts="getPosts" @editPost="updateEditing" />
-      <EditPostForm v-else :post="post" @refreshPosts="getPosts" @editPost="updateEditing" />
-    </article>
+    <nav>
+      <p id="feed">{{ currentFeedName }}</p>
+      <SearchPostForm @getPostsByFilter="getPosts" />
+    </nav>
+
+    <v-btn elevation="4" icon="mdi-plus" @click="openDialog"></v-btn>
+
+    <v-dialog v-model="dialog" max-width="600">
+      <v-sheet class="pa-4 text-center mx-auto" elevation="12" rounded="lg" width="100%">
+        <h2>Create a post:</h2>
+        <CreatePostForm @refreshPosts="getPosts" @closeDialog="closeDialog" />
+      </v-sheet>
+    </v-dialog>
+
+    <div class="row">
+
+    </div>
+    <section class="posts" v-if="loaded && posts.length !== 0">
+      <article v-for="post in posts" :key="post._id">
+        <PostComponent v-if="editing !== post._id" :post="post" @refreshPosts="getPosts" @editPost="updateEditing" />
+        <EditPostForm v-else :post="post" @refreshPosts="getPosts" @editPost="updateEditing" />
+      </article>
+    </section>
+    <p v-else-if="loaded">No posts found</p>
+    <p v-else>Loading...</p>
   </section>
-  <p v-else-if="loaded">No posts found</p>
-  <p v-else>Loading...</p>
 </template>
 
 <style scoped>
+.v-btn {
+  background-color: black;
+  color: white;
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  margin: 1em;
+}
+
+.v-btn:hover {
+  color: black;
+  background-color: white;
+}
+
+nav {
+  padding: 1em 2em;
+  background-color: black;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  color: white;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#feed {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 0;
+}
+
 section {
   display: flex;
   flex-direction: column;
   gap: 1em;
+  position: relative;
 }
 
 section,

@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import DocCollection, { BaseDoc } from "../framework/doc";
 import { BadValuesError, NotFoundError } from "./errors";
+import { it } from "mocha";
 
 export interface ReactionDoc extends BaseDoc {
   user: ObjectId;
@@ -8,7 +9,7 @@ export interface ReactionDoc extends BaseDoc {
   reaction: string;
 }
 
-const definedReactions = ["Hug", "Smile", "Cheer"];
+const definedReactions = ["happy", "sad", "love", "like"];
 /**
  * concept: Reaction [User]
  */
@@ -17,6 +18,10 @@ export default class ReactionConcept {
 
   constructor(collectionName: string) {
     this.reactions = new DocCollection<ReactionDoc>(collectionName);
+  }
+
+  async getReactionOnItemByUser(user: ObjectId, item: ObjectId) {
+    return await this.reactions.readOne({ user, item });
   }
 
   async addReaction(user: ObjectId, item: ObjectId, reaction: string) {
@@ -40,8 +45,16 @@ export default class ReactionConcept {
   }
 
   async getReactionCount(itemId: ObjectId) {
-    
     return await this.reactions.count({ item: itemId });
+  }
+
+  async getReactionCountsByType(itemId: ObjectId) {
+    const counts = await this.reactions.collection.aggregate([{ $match: { item: itemId } }, { $group: { _id: "$reaction", count: { $sum: 1 } } }]).toArray();
+    const result: Record<string, number> = {};
+    for (const count of counts) {
+      result[count._id] = count.count;
+    }
+    return result;
   }
 
   private assertReactionIsValid(reaction: string) {

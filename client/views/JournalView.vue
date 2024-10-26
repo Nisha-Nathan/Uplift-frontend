@@ -1,0 +1,17 @@
+<script setup lang="ts">
+import JournalListComponent from '@/components/Journal/JournalListComponent.vue';
+
+</script>
+
+<template>
+    <main>
+        <h1>Journals</h1>
+        <JournalListComponent />
+
+    </main>
+</template>
+<style scoped>
+h1 {
+    text-align: center;
+}
+</style>
